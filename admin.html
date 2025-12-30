@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css?v=5">
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <style>
+        /* Admin Specific Styles */
+        .admin-wrapper {
+            width: 95%;
+            max-width: 1200px;
+            margin: 20px auto;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .card-box {
+            background: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-box h3 {
+            margin-top: 0;
+            color: var(--text-dark);
+            border-bottom: 2px solid #f1f2f6;
+            padding-bottom: 10px;
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: #7f8fa6;
+        }
+
+        .action-btn {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-delete {
+            background: #ff4757;
+            color: white;
+        }
+
+        .btn-add {
+            background: #2ed573;
+            color: white;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        /* Stats */
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+            background: #dfe4ea;
+            padding: 10px;
+            border-radius: 10px;
+            flex: 1;
+            margin: 0 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--text-dark);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #7f8fa6;
+        }
+
+        .scan-result-box {
+            margin-top: 10px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+
+        .res-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .res-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        @media (max-width: 900px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="admin-wrapper">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1 style="margin: 0; font-size: 1.8rem;">Admin Dashboard</h1>
+            <button class="secondary-btn" onclick="location.href='index.html'"
+                style="padding: 8px 15px; font-size: 0.9rem;">Kembali ke Home</button>
+        </div>
+
+        <div class="grid-layout">
+            <!-- LEFT COLUMN: SCANNER & QUOTA -->
+            <div>
+                <!-- Quota Card -->
+                <div class="card-box" style="margin-bottom: 20px;">
+                    <h3>Pengaturan Kuota</h3>
+                    <div class="stats-row">
+                        <div class="stat-item">
+                            <div class="stat-value" id="stats-claimed">-</div>
+                            <div class="stat-label">Terisi</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="stats-limit">-</div>
+                            <div class="stat-label">Batas Kuota</div>
+                        </div>
+                    </div>
+
+                    <label style="font-weight: 600; font-size: 0.9rem;">Ubah Batas Kuota:</label>
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <button onclick="setQuota(50)" id="btn-50" class="secondary-btn" style="flex:1;">Set 50</button>
+                        <button onclick="setQuota(100)" id="btn-100" class="secondary-btn" style="flex:1;">Set
+                            100</button>
+                    </div>
+                </div>
+
+                <!-- Scanner Card -->
+                <div class="card-box">
+                    <h3>QR Scanner</h3>
+                    <div id="reader" style="width: 100%; border-radius: 10px; overflow: hidden;"></div>
+                    <button onclick="startScanner()" id="startScanBtn" style="width: 100%; margin-top: 10px;">Buka
+                        Kamera</button>
+                    <div id="scanResult" class="scan-result-box"></div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: MANAGE USERS -->
+            <div class="card-box">
+                <h3>Manajemen Peserta</h3>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input type="text" id="searchInput" placeholder="Cari Nama / No HP..."
+                        style="padding: 10px; border-radius: 5px; border: 1px solid #ddd; flex: 1;">
+                    <button onclick="loadClaims()" class="secondary-btn" style="padding: 0 15px;">Cari</button>
+                </div>
+
+                <div style="max-height: 500px; overflow-y: auto;">
+                    <table id="claimsTable">
+                        <thead>
+                            <tr>
+                                <th>Nama</th>
+                                <th>No. HP</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 20px; border-top: 2px solid #f1f2f6; padding-top: 10px;">
+                    <h4 style="margin: 0 0 10px;">Tambah Tiket Manual</h4>
+                    <input type="text" id="manualPhone" placeholder="Masukkan No HP User"
+                        style="padding: 10px; border-radius: 5px; border: 1px solid #ddd; width: 100%; box-sizing: border-box;">
+                    <button onclick="manualAdd()" class="btn-add">Berikan Tiket</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let html5QrcodeScanner;
+
+        // --- INIT ---
+        document.addEventListener("DOMContentLoaded", () => {
+            fetchStats();
+            loadClaims();
+
+            // REALTIME SUBSCRIPTION
+            const channel = _supabase
+                .channel('admin_dashboard')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'claims' },
+                    (payload) => {
+                        console.log('Realtime Change:', payload);
+                        fetchStats();
+                        loadClaims();
+                    }
+                )
+                .subscribe();
+        });
+
+        // --- STATS & QUOTA ---
+        async function fetchStats() {
+            // Get Config
+            const { data: config } = await _supabase.from('app_config').select('value').eq('key', 'quota_limit').maybeSingle();
+            const limit = config ? parseInt(config.value) : 50;
+
+            // Get Count
+            const { count } = await _supabase.from('claims').select('*', { count: 'exact', head: true });
+
+            document.getElementById('stats-claimed').innerText = count;
+            document.getElementById('stats-limit').innerText = limit;
+
+            // Highlight Active Button
+            document.getElementById('btn-50').style.backgroundColor = limit === 50 ? 'var(--primary-color)' : '#f1f2f6';
+            document.getElementById('btn-50').style.color = limit === 50 ? 'white' : '#333';
+
+            document.getElementById('btn-100').style.backgroundColor = limit === 100 ? 'var(--primary-color)' : '#f1f2f6';
+            document.getElementById('btn-100').style.color = limit === 100 ? 'white' : '#333';
+        }
+
+        async function setQuota(newLimit) {
+            if (!confirm(`Ubah kuota menjadi ${newLimit}?`)) return;
+
+            const { error } = await _supabase.from('app_config').upsert({ key: 'quota_limit', value: String(newLimit) });
+
+            if (error) alert("Gagal update kuota: " + error.message);
+            else {
+                alert("Kuota diperbarui!");
+                fetchStats();
+            }
+        }
+
+        // --- USER MANAGEMENT ---
+        async function loadClaims() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const tbody = document.querySelector('#claimsTable tbody');
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Loading...</td></tr>';
+
+            // Fetch Claims with User Data
+            let query = _supabase.from('claims').select('id, user_id, claimed_at, collected_at, users(full_name, phone_number)');
+
+            const { data, error } = await query;
+
+            if (error) {
+                tbody.innerHTML = '<tr><td colspan="4">Error Loading Data</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+
+            const filtered = data.filter(item => {
+                if (!search) return true;
+                const name = (item.users?.full_name || '').toLowerCase();
+                const phone = (item.users?.phone_number || '').toLowerCase();
+                return name.includes(search) || phone.includes(search);
+            });
+
+            filtered.forEach(item => {
+                const tr = document.createElement('tr');
+                const collectedText = item.collected_at ?
+                    '<span style="color:green; font-weight:bold;">Sudah Diambil</span>' :
+                    '<span style="color:#ffa502; font-weight:bold;">Booking</span>';
+
+                tr.innerHTML = `
+                    <td>${item.users?.full_name || 'Unkown'}</td>
+                    <td>${item.users?.phone_number || '-'}</td>
+                    <td>${collectedText}</td>
+                    <td><button class="action-btn btn-delete" onclick="deleteClaim(${item.id})">Hapus</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Tidak ada data</td></tr>';
+            }
+        }
+
+        async function manualAdd() {
+            const phone = document.getElementById('manualPhone').value.replace(/[^0-9]/g, '');
+            if (!phone) return alert("Masukkan Nomor HP");
+
+            // Check Limit First
+            // ... (Simple skip for admin manual add? Or force check? Let's force check to be safe, or allow override)
+            // Let's simple INSERT, assuming Admin knows best.
+
+            // Get User ID
+            const { data: user } = await _supabase.from('users').select('id').eq('phone_number', phone).maybeSingle();
+            if (!user) return alert("Nomor HP tidak terdaftar di sistem Users!");
+
+            const { error } = await _supabase.from('claims').insert({ user_id: user.id });
+
+            if (error) alert("Gagal tambah: " + error.message);
+            else {
+                alert("Berhasil menambahkan tiket!");
+                document.getElementById('manualPhone').value = '';
+                loadClaims();
+                fetchStats();
+            }
+        }
+
+        async function deleteClaim(claimId) {
+            if (!confirm("Yakin ingin menghapus tiket ini? User akan kehilangan akses.")) return;
+
+            const { error } = await _supabase.from('claims').delete().eq('id', claimId);
+            if (error) alert("Gagal hapus: " + error.message);
+            else {
+                loadClaims();
+                fetchStats();
+            }
+        }
+
+        // --- SCANNER ---
+        function onScanSuccess(decodedText, decodedResult) {
+            try {
+                const data = JSON.parse(decodedText);
+                if (data.user_id) {
+                    processScan(data.user_id);
+                    html5QrcodeScanner.clear();
+                    document.getElementById('startScanBtn').style.display = 'block';
+                }
+            } catch (e) {
+                alert("QR Code tidak valid!");
+            }
+        }
+
+        async function processScan(userId) {
+            const resDiv = document.getElementById('scanResult');
+            resDiv.style.display = 'block';
+            resDiv.innerText = "Memproses...";
+            resDiv.className = "scan-result-box";
+
+            const { data: claim, error } = await _supabase
+                .from('claims')
+                .select('*, users(full_name)')
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            if (!claim) {
+                resDiv.innerText = "GAGAL: Tiket tidak ditemukan / Belum Booking.";
+                resDiv.classList.add('res-error');
+                return;
+            }
+
+            if (claim.collected_at) {
+                resDiv.innerText = `GAGAL: Sudah diambil oleh ${claim.users.full_name}.`;
+                resDiv.classList.add('res-error');
+                return;
+            }
+
+            // Update
+            await _supabase.from('claims').update({ collected_at: new Date() }).eq('id', claim.id);
+            resDiv.innerText = `SUKSES! Verifikasi ${claim.users.full_name}.`;
+            resDiv.classList.add('res-success');
+
+            loadClaims(); // Refresh list
+        }
+
+        function startScanner() {
+            document.getElementById('startScanBtn').style.display = 'none';
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false
+            );
+            html5QrcodeScanner.render(onScanSuccess);
+        }
+    </script>
+</body>
+
+</html>

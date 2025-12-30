@@ -4,9 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cek Tiket Sembako</title>
-    <!-- V3 for cache busting -->
-    <link rel="stylesheet" href="style.css?v=3">
+    <title>Cek Sembako</title>
+    <link rel="stylesheet" href="style.css?v=4">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
 </head>
@@ -17,21 +16,20 @@
         <!-- Left Side: Hero Text & Branding -->
         <div class="hero-section">
             <div class="brand-logos">
-                <img src="assets/logo_combined.png" alt="Logo TPA x 101" style="height: 100px;">
+                <img src="assets/logo_combined.png" alt="Logo Sembako" style="height: 100px;">
             </div>
 
             <h1 class="hero-title">
-                Sistem <br>
-                <span>Distribusi</span> Sembako
+                Cek <br>
+                <span>Penerima</span> Sembako
             </h1>
             <p class="hero-subtitle">
-                Selamat datang di platform digital Taman Pelajar Aceh & The 1O1 Hotel.
-                Silakan cek hak penerimaan sembako Anda hanya dengan nomor handphone.
+                Selamat datang di platform digital pembagian sembako.
+                Silakan cek hak penerimaan Anda hanya dengan nomor handphone.
                 Mudah, Cepat, dan Transparan.
             </p>
 
             <div style="display:flex; gap:10px;">
-                <!-- Decorative pills or badges -->
                 <span
                     style="background:#fff; padding:8px 15px; border-radius:20px; font-weight:700; color:#555; box-shadow:0 5px 10px rgba(0,0,0,0.05);">📅
                     Desember 2025</span>
@@ -41,83 +39,191 @@
             </div>
         </div>
 
-        <!-- Right Side: Interaction Card (The "Phone" in the inspiration) -->
+        <!-- Right Side: Interactive Card -->
         <div class="form-section">
             <!-- Decorative Floating Elements -->
             <div class="deco-circle"></div>
             <div class="deco-square"></div>
 
             <div class="login-card">
-                <h2 class="card-title">Cek Tiket</h2>
+                <h2 style="margin-bottom: 20px;">Cek Tiket</h2>
                 <p style="margin-bottom:20px; color:#7f8fa6;">Masukkan No. HP Anda</p>
 
-                <input type="text" id="check-phone" autocomplete="off">
-                <button onclick="checkUser()">Lihat Status</button>
+                <div class="form-group">
+                    <input type="text" id="phoneInput" placeholder="Contoh: 08123456789" required autocomplete="off">
+                </div>
 
-                <div id="message" style="text-align:center;"></div>
+                <button onclick="checkNumber()" id="checkBtn">Cek Ketersediaan</button>
+
+                <div id="resultArea" class="hidden" style="margin-top: 20px;">
+                    <div id="userInfo"
+                        style="padding: 10px; border-radius: 10px; margin-bottom: 10px; background: #f1f2f6;"></div>
+                    <button id="actionBtn" class="hidden"
+                        style="margin-top: 10px; width: 100%; font-size: 0.9rem;">Ambil Tiket</button>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Notification Container -->
+    <div id="notification" class="notification hidden"></div>
+
     <script>
-        async function checkUser() {
-            const phoneInput = document.getElementById('check-phone');
-            const messageDiv = document.getElementById('message');
-            const btn = document.querySelector('button');
+        // Initialize Supabase (Config is loaded from config.js)
+        // const _supabase = ... (already in config.js)
 
-            // Reset UI
-            messageDiv.innerText = "";
-            messageDiv.style.color = "#2f3542";
-            btn.innerText = "Loading...";
+        async function checkNumber() {
+            const phoneInput = document.getElementById('phoneInput');
+            const btn = document.getElementById('checkBtn');
+            const resultArea = document.getElementById('resultArea');
+            const userInfo = document.getElementById('userInfo');
+            const actionBtn = document.getElementById('actionBtn');
 
-            let phone = phoneInput.value.replace(/[^0-9]/g, '');
+            const phone = phoneInput.value.replace(/[^0-9]/g, '');
 
             if (!phone) {
-                alert("Mohon isi Nomor HP.");
-                btn.innerText = "Lihat Status";
+                showNotification("Nomor HP harus diisi!", "error");
                 return;
             }
 
-            // Using Supabase
-            const { data, error } = await _supabase
-                .from('users')
-                .select('*')
-                .eq('phone_number', phone)
-                .maybeSingle();
+            btn.disabled = true;
+            btn.innerText = "Memeriksa...";
 
-            if (error) {
-                messageDiv.innerText = "Error Koneksi.";
-                messageDiv.style.color = "#ff4757";
-                console.error(error);
-                btn.innerText = "Lihat Status";
-                return;
+            try {
+                // 1. Check User exists
+                const { data: user, error: userError } = await _supabase
+                    .from('users')
+                    .select('id, full_name')
+                    .eq('phone_number', phone)
+                    .maybeSingle();
+
+                if (userError) throw userError;
+
+                if (!user) {
+                    showNotification("Nomor HP tidak terdaftar.", "error");
+                    // Shake animation
+                    const card = document.querySelector('.login-card');
+                    card.style.animation = "none";
+                    card.offsetHeight;
+                    card.style.animation = "shake 0.5s";
+                    setTimeout(() => card.style.animation = "floatCard 6s ease-in-out infinite", 500);
+
+                    resultArea.classList.add('hidden');
+                    return;
+                }
+
+                // 2. Check Existing Claim
+                const { data: claim, error: claimError } = await _supabase
+                    .from('claims')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+
+                if (claimError) throw claimError;
+
+                // 3. Check Quota (if not claimed yet)
+                let isFull = false;
+                if (!claim) {
+                    // Fetch Quota Limit
+                    const { data: config, error: configError } = await _supabase
+                        .from('app_config')
+                        .select('value')
+                        .eq('key', 'quota_limit')
+                        .maybeSingle();
+
+                    const limit = config ? parseInt(config.value) : 50; // Default 50
+
+                    const { count, error: countError } = await _supabase
+                        .from('claims')
+                        .select('*', { count: 'exact', head: true });
+
+                    if (countError) throw countError;
+
+                    if (count >= limit) isFull = true;
+                }
+
+                // Display Result
+                resultArea.classList.remove('hidden');
+                userInfo.innerHTML = `<strong>Halo, ${user.full_name}</strong>`;
+
+                if (claim) {
+                    userInfo.style.background = "#d1fae5"; // light green
+                    userInfo.style.color = "#065f46";
+                    userInfo.innerHTML += `<br><small>Anda sudah memiliki tiket.</small>`;
+
+                    actionBtn.innerText = "Lihat Tiket Saya";
+                    actionBtn.style.background = "#fff";
+                    actionBtn.style.color = "#333";
+                    actionBtn.style.border = "2px solid #ddd";
+                    actionBtn.classList.remove('hidden');
+                    actionBtn.onclick = () => viewTicket(user.id, user.full_name);
+
+                } else if (isFull) {
+                    userInfo.style.background = "#fee2e2"; // light red
+                    userInfo.style.color = "#991b1b";
+                    userInfo.innerHTML += `<br><small>Mohon maaf, kuota sembako sudah habis.</small>`;
+                    actionBtn.classList.add('hidden');
+                } else {
+                    userInfo.style.background = "#dbeafe"; // light blue
+                    userInfo.style.color = "#1e40af";
+                    userInfo.innerHTML += `<br><small>Kuota tersedia. Silakan ambil tiket.</small>`;
+
+                    actionBtn.innerText = "Ambil Tiket Sekarang";
+                    actionBtn.style.background = "var(--primary-color)";
+                    actionBtn.style.color = "white";
+                    actionBtn.style.border = "none";
+                    actionBtn.classList.remove('hidden');
+                    actionBtn.onclick = () => bookTicket(user.id);
+                }
+
+            } catch (err) {
+                console.error(err);
+                showNotification("Terjadi kesalahan koneksi.", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Cek Ketersediaan";
             }
-
-            if (!data) {
-                messageDiv.innerText = "Tidak ditemukan.";
-                messageDiv.style.color = "#ff4757";
-
-                // Shake Animation
-                const card = document.querySelector('.login-card');
-                card.style.animation = "none";
-                card.offsetHeight; /* trigger reflow */
-                card.style.animation = "shake 0.5s";
-                setTimeout(() => card.style.animation = "floatCard 6s ease-in-out infinite", 500);
-
-                btn.innerText = "Lihat Status";
-                return;
-            }
-
-            // Success Animation?
-            btn.style.backgroundColor = "#2ed573";
-            btn.innerText = "Berhasil!";
-            setTimeout(() => {
-                localStorage.setItem('user', JSON.stringify(data));
-                window.location.href = 'dashboard.html';
-            }, 800);
         }
 
-        // Add shake keyframe dynamically or in CSS
+        async function bookTicket(userId) {
+            if (!confirm("Anda yakin ingin mengambil tiket ini?")) return;
+
+            try {
+                const { error } = await _supabase
+                    .from('claims')
+                    .insert([{ user_id: userId }]);
+
+                if (error) {
+                    if (error.code === '23505') {
+                        showNotification("Anda sudah mengambil tiket sebelumnya.", "error");
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    showNotification("Berhasil! Tiket didapatkan.", "success");
+                    checkNumber(); // Refresh status
+                }
+            } catch (err) {
+                console.error(err);
+                showNotification("Gagal klaim tiket.", "error");
+            }
+        }
+
+        function viewTicket(userId, name) {
+            localStorage.setItem('sembako_user', JSON.stringify({ id: userId, name: name }));
+            window.location.href = 'ticket.html';
+        }
+
+        function showNotification(msg, type) {
+            const el = document.getElementById('notification');
+            el.innerText = msg;
+            el.className = `notification ${type} show`;
+            setTimeout(() => {
+                el.classList.remove('show');
+            }, 3000);
+        }
+
+        // Add shake keyframe dynamically
         const styleSheet = document.createElement("style");
         styleSheet.innerText = `
             @keyframes shake {

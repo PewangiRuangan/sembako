@@ -46,8 +46,9 @@
             resultDiv.classList.remove('hidden');
 
             try {
-                const res = await fetch('api/claim.php', {
+                const res = await fetch('api/process_scan.php', {
                     method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user_id: userId })
                 });
                 const data = await res.json();
@@ -55,8 +56,10 @@
                 resultDiv.innerText = data.message;
                 if (data.success) {
                     resultDiv.classList.add('alert-success');
+                    resultDiv.classList.remove('alert-error');
                 } else {
                     resultDiv.classList.add('alert-error');
+                    resultDiv.classList.remove('alert-success');
                 }
             } catch (err) {
                 console.error(err);

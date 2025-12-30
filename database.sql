@@ -16,6 +16,7 @@ CREATE TABLE claims (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     claimed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    collected_at TIMESTAMP NULL,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 

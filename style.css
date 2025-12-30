@@ -1,4 +1,4 @@
-/* CSS V4 - COMPREHENSIVE STYLE (Landing, Dashboard, Scanner) */
+/* CSS V5 - FIXED NOTIFICATION & MOBILE */
 
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&family=Poppins:wght@300;400;600&display=swap');
 
@@ -49,6 +49,36 @@ button {
     cursor: pointer;
     font-family: var(--font-heading);
     transition: all 0.3s;
+}
+
+/* NOTIFICATION TOAST */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #333;
+    color: white;
+    padding: 15px 25px;
+    border-radius: 10px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    z-index: 10000;
+    font-weight: 600;
+    transform: translateY(-100px);
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+.notification.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.notification.error {
+    background: var(--primary-color);
+}
+
+.notification.success {
+    background: var(--secondary-color);
 }
 
 /* =========================================
@@ -150,6 +180,7 @@ button {
     font-size: 1rem;
     font-weight: 600;
     box-sizing: border-box;
+    transition: border 0.3s, background 0.3s;
 }
 
 .login-card input:focus {
@@ -362,54 +393,23 @@ button {
     margin: 15px 0;
 }
 
-.history-card {
-    text-align: left;
-}
-
-.history-item {
-    padding: 10px;
-    border-bottom: 1px solid #f1f1f1;
-    font-size: 0.9em;
-    background: #fff;
-    margin-bottom: 5px;
-    border-radius: 5px;
-}
-
-.history-success {
-    border-left: 4px solid var(--secondary-color);
-}
-
-.history-fail {
-    border-left: 4px solid var(--primary-color);
-}
-
-/* Modal */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-}
-
-.modal-content {
-    background: white;
-    padding: 30px;
-    border-radius: 20px;
+.scan-result-box {
+    margin-top: 10px;
+    padding: 15px;
+    border-radius: 10px;
+    font-weight: bold;
     text-align: center;
-    width: 90%;
-    max-width: 400px;
+    display: none;
 }
 
-.modal-content button {
-    margin-top: 20px;
-    width: auto;
-    padding: 10px 30px;
+.res-success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.res-error {
+    background: #fee2e2;
+    color: #991b1b;
 }
 
 
@@ -493,13 +493,23 @@ button {
 @media (max-width: 900px) {
     .main-wrapper {
         flex-direction: column;
-        padding: 30px;
+        padding: 30px 20px;
+        margin: 10px;
+        width: auto;
     }
 
     .hero-section {
         padding-right: 0;
         text-align: center;
         margin-bottom: 40px;
+    }
+
+    .hero-title {
+        font-size: 2.5rem;
+    }
+
+    .hero-subtitle {
+        font-size: 1rem;
     }
 
     .brand-logos {
@@ -514,12 +524,16 @@ button {
     .login-card {
         transform: rotateY(0) rotateX(0);
         animation: none;
+        padding: 30px;
     }
 
+    /* Ticket Responsive */
     .ticket-wrapper {
         flex-direction: column-reverse;
         transform: rotate(0);
-        max-width: 400px;
+        max-width: 90%;
+        margin: 20px auto;
+        animation: none;
     }
 
     .ticket-visual {
@@ -527,9 +541,17 @@ button {
         border-top: 3px dashed rgba(255, 255, 255, 0.3);
         flex: auto;
         padding: 30px;
+        width: auto;
     }
 
     .ticket-details {
         padding: 25px;
+    }
+
+    /* Decos */
+    .deco-circle,
+    .deco-square {
+        display: none;
+        /* Hide floating decos on mobile to prevent overflow */
     }
 }
