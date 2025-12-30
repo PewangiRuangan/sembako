@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiket Sembako</title>
+    <!-- V3.1 for cache busting -->
+    <link rel="stylesheet" href="style.css?v=3.1">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="config.js"></script>
+</head>
+
+<body class="dashboard-body">
+
+    <div class="ticket-wrapper">
+        <!-- LEFT: VISUAL / QR -->
+        <div class="ticket-visual">
+            <h2 id="status-title">TIKET</h2>
+            <span id="status-badge" class="status-badge">MEMUAT...</span>
+
+            <div id="qrcode"></div>
+
+            <!-- Fallback text for Asrama -->
+            <div id="reject-msg" class="hidden" style="margin-top:20px; font-size:0.9rem; opacity:0.8;">
+                Mohon maaf,<br>Anda belum memenuhi syarat.
+            </div>
+
+            <p style="margin-top:30px; font-size:0.7rem; opacity:0.5; letter-spacing:1px;">
+                ID: <span id="user-id">...</span>
+            </p>
+        </div>
+
+        <!-- RIGHT: DETAILS -->
+        <div class="ticket-details">
+            <div class="ticket-header">
+                <span style="font-weight:900; color:#dfe4ea; font-size:1.2rem;">SEMBAKO 2025</span>
+                <div style="display:flex; gap:10px;">
+                    <img src="assets/logo_combined.png" alt="TPA x 101" style="height: 50px;">
+                </div>
+            </div>
+
+            <div class="detail-row">
+                <div class="detail-label">Nama</div>
+                <div class="detail-value" id="d-name">...</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">No. HP</div>
+                <div class="detail-value" id="d-phone">...</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Universitas</div>
+                <div class="detail-value" id="d-uni">-</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Tempat Lahir</div>
+                <div class="detail-value" id="d-birthplace">-</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Tgl Lahir</div>
+                <div class="detail-value" id="d-birthdate">-</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Status</div>
+                <div class="detail-value" id="d-status" style="color:var(--primary-color);">...</div>
+            </div>
+
+            <button class="logout-btn" onclick="logout()">Keluar</button>
+        </div>
+    </div>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) window.location.href = 'index.html';
+
+        // Fill Data
+        document.getElementById('d-name').innerText = user.full_name;
+        document.getElementById('d-phone').innerText = user.phone_number;
+        document.getElementById('d-status').innerText = (user.residence_type || '-').toUpperCase();
+        document.getElementById('d-uni').innerText = user.university || '-';
+        document.getElementById('d-birthplace').innerText = user.birth_place || '-';
+        document.getElementById('d-birthdate').innerText = user.birth_date || '-';
+        document.getElementById('user-id').innerText = "#" + String(user.id).padStart(6, '0');
+
+        // Logic
+        const type = (user.residence_type || '').toLowerCase();
+        const badge = document.getElementById('status-badge');
+        const qrcodeDiv = document.getElementById('qrcode');
+        const rejectMsg = document.getElementById('reject-msg');
+        const visualTitle = document.getElementById('status-title');
+
+        if (type.includes('kos') || type.includes('kontrakan')) {
+            // Eligible
+            badge.innerText = "VERIFIED / BERHAK";
+            badge.classList.remove('error');
+            visualTitle.innerText = "ADMIT ONE";
+
+            new QRCode(qrcodeDiv, {
+                text: JSON.stringify({ user_id: user.id, name: user.full_name }),
+                width: 140,
+                height: 140,
+                colorDark: "#2f3542",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        } else {
+            // Not Eligible
+            badge.innerText = "TIDAK BERHAK";
+            badge.classList.add('error'); // Red bg
+            visualTitle.innerText = "ACCESS DENIED";
+
+            qrcodeDiv.style.display = 'none';
+            rejectMsg.classList.remove('hidden');
+        }
+
+        function logout() {
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+
+</html>

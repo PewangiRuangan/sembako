@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cek Tiket Sembako</title>
+    <!-- V3 for cache busting -->
+    <link rel="stylesheet" href="style.css?v=3">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+</head>
+
+<body>
+
+    <div class="main-wrapper">
+        <!-- Left Side: Hero Text & Branding -->
+        <div class="hero-section">
+            <div class="brand-logos">
+                <img src="assets/logo_combined.png" alt="Logo TPA x 101" style="height: 100px;">
+            </div>
+
+            <h1 class="hero-title">
+                Sistem <br>
+                <span>Distribusi</span> Sembako
+            </h1>
+            <p class="hero-subtitle">
+                Selamat datang di platform digital Taman Pelajar Aceh & The 1O1 Hotel.
+                Silakan cek hak penerimaan sembako Anda hanya dengan nomor handphone.
+                Mudah, Cepat, dan Transparan.
+            </p>
+
+            <div style="display:flex; gap:10px;">
+                <!-- Decorative pills or badges -->
+                <span
+                    style="background:#fff; padding:8px 15px; border-radius:20px; font-weight:700; color:#555; box-shadow:0 5px 10px rgba(0,0,0,0.05);">📅
+                    Desember 2025</span>
+                <span
+                    style="background:#fff; padding:8px 15px; border-radius:20px; font-weight:700; color:#555; box-shadow:0 5px 10px rgba(0,0,0,0.05);">📍
+                    Yogyakarta</span>
+            </div>
+        </div>
+
+        <!-- Right Side: Interaction Card (The "Phone" in the inspiration) -->
+        <div class="form-section">
+            <!-- Decorative Floating Elements -->
+            <div class="deco-circle"></div>
+            <div class="deco-square"></div>
+
+            <div class="login-card">
+                <h2 class="card-title">Cek Tiket</h2>
+                <p style="margin-bottom:20px; color:#7f8fa6;">Masukkan No. HP Anda</p>
+
+                <input type="text" id="check-phone" autocomplete="off">
+                <button onclick="checkUser()">Lihat Status</button>
+
+                <div id="message" style="text-align:center;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function checkUser() {
+            const phoneInput = document.getElementById('check-phone');
+            const messageDiv = document.getElementById('message');
+            const btn = document.querySelector('button');
+
+            // Reset UI
+            messageDiv.innerText = "";
+            messageDiv.style.color = "#2f3542";
+            btn.innerText = "Loading...";
+
+            let phone = phoneInput.value.replace(/[^0-9]/g, '');
+
+            if (!phone) {
+                alert("Mohon isi Nomor HP.");
+                btn.innerText = "Lihat Status";
+                return;
+            }
+
+            // Using Supabase
+            const { data, error } = await _supabase
+                .from('users')
+                .select('*')
+                .eq('phone_number', phone)
+                .maybeSingle();
+
+            if (error) {
+                messageDiv.innerText = "Error Koneksi.";
+                messageDiv.style.color = "#ff4757";
+                console.error(error);
+                btn.innerText = "Lihat Status";
+                return;
+            }
+
+            if (!data) {
+                messageDiv.innerText = "Tidak ditemukan.";
+                messageDiv.style.color = "#ff4757";
+
+                // Shake Animation
+                const card = document.querySelector('.login-card');
+                card.style.animation = "none";
+                card.offsetHeight; /* trigger reflow */
+                card.style.animation = "shake 0.5s";
+                setTimeout(() => card.style.animation = "floatCard 6s ease-in-out infinite", 500);
+
+                btn.innerText = "Lihat Status";
+                return;
+            }
+
+            // Success Animation?
+            btn.style.backgroundColor = "#2ed573";
+            btn.innerText = "Berhasil!";
+            setTimeout(() => {
+                localStorage.setItem('user', JSON.stringify(data));
+                window.location.href = 'dashboard.html';
+            }, 800);
+        }
+
+        // Add shake keyframe dynamically or in CSS
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = `
+            @keyframes shake {
+                0% { transform: translateX(0); }
+                25% { transform: translateX(-10px); }
+                50% { transform: translateX(10px); }
+                75% { transform: translateX(-10px); }
+                100% { transform: translateX(0); }
+            }
+        `;
+        document.head.appendChild(styleSheet);
+    </script>
+</body>
+
+</html>

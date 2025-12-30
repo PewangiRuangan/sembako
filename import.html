@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import Data CSV to Supabase</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <!-- Papaparse for CSV Parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Import Data (Lengkap)</h1>
+            <p>Upload file CSV untuk memasukkan data ke Supabase.</p>
+            <input type="file" id="csv-file" accept=".csv" />
+            <button onclick="processFile()">Upload & Process</button>
+            <button class="secondary-btn" onclick="location.href='index.html'">Kembali</button>
+
+            <div id="log"
+                style="margin-top:20px; text-align:left; font-size:12px; max-height:200px; overflow-y:scroll; background:#eee; padding:10px;">
+                Log output...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function log(msg) {
+            const div = document.getElementById('log');
+            div.innerHTML += msg + "<br>";
+            div.scrollTop = div.scrollHeight;
+        }
+
+        function cleanPhone(p) {
+            if (!p) return "";
+            return p.replace(/[^0-9]/g, '');
+        }
+
+        function processFile() {
+            const fileInput = document.getElementById('csv-file');
+            if (!fileInput.files[0]) {
+                alert("Pilih file CSV dulu!");
+                return;
+            }
+
+            log("Membaca file...");
+
+            Papa.parse(fileInput.files[0], {
+                header: false,
+                complete: async function (results) {
+                    const rows = results.data;
+                    log(`Total baris ditemukan: ${rows.length}`);
+
+                    let successCount = 0;
+                    let failCount = 0;
+
+                    // Start from row 1 (skip header)
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+
+                        // Mapping based on CSV Structure:
+                        // 1: Nama
+                        // 2: Tempat Lahir
+                        // 3: Tanggal Lahir
+                        // 4: Phone
+                        // 5: Universitas
+                        // 9: Residence Type
+
+                        if (!row[1]) continue;
+
+                        const name = row[1];
+                        const birthPlace = row[2] || "";
+                        const birthDate = row[3] || "";
+                        const phone = cleanPhone(row[4]);
+                        const uni = row[5] || "";
+                        const residenceRaw = (row[9] || "").toLowerCase();
+
+                        let status = 'kos';
+                        if (residenceRaw.includes('asrama')) status = 'asrama';
+                        else if (residenceRaw.includes('kontrakan')) status = 'kontrakan';
+
+                        const password = "123456";
+
+                        if (name && phone) {
+                            // Note: we're using upsert logic implicitly via insert unique constraint?
+                            // Actually pure INSERT will fail if unique, which is good.
+                            const { error } = await _supabase
+                                .from('users')
+                                .insert([{
+                                    full_name: name,
+                                    phone_number: phone,
+                                    password: password,
+                                    residence_type: status,
+                                    birth_place: birthPlace,
+                                    birth_date: birthDate,
+                                    university: uni
+                                }]);
+
+                            if (error) {
+                                log(`[Error] ${name}: ${error.message}`);
+                                failCount++;
+                            } else {
+                                log(`[OK] ${name}`);
+                                successCount++;
+                            }
+                        }
+                    }
+
+                    log(`<b>SELESAI. Sukses: ${successCount}, Gagal: ${failCount}</b>`);
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

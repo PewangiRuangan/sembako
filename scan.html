@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Scanner (Sembako)</title>
+    <link rel="stylesheet" href="style.css?v=2">
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <style>
+        .scanner-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .history-card {
+            margin-top: 20px;
+            text-align: left;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+
+        .history-item {
+            padding: 8px;
+            border-bottom: 1px solid #f1f1f1;
+            font-size: 0.9em;
+        }
+
+        .history-success {
+            border-left: 4px solid #00b894;
+            background: #eaffea;
+        }
+
+        .history-fail {
+            border-left: 4px solid #d63031;
+            background: #ffeaea;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 90%;
+            width: 400px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container scanner-container">
+
+        <!-- Header Logos -->
+        <div class="logo-container">
+            <img src="assets/logo_combined.png" alt="Logo TPA x 101" class="logo" style="height: 80px;">
+        </div>
+
+        <div class="card">
+            <h1>Scanner Pembagian</h1>
+            <p>Arahkan kamera ke QR Code User</p>
+
+            <div id="reader"
+                style="width: 100%; min-height: 300px; background: #eee; border-radius:10px; overflow:hidden;"></div>
+
+            <div id="scan-status" style="margin-top: 10px; font-style: italic; color: #777;">Siap Scan...</div>
+
+            <button onclick="reloadScanner()" class="secondary-btn" style="margin-top:10px;">Refresh Kamera</button>
+            <button onclick="location.href='index.html'" class="secondary-btn">Kembali ke Menu</button>
+        </div>
+
+        <div class="card history-card">
+            <h3>Riwayat Sesi Ini</h3>
+            <div id="history-list">
+                <!-- Log items go here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Result -->
+    <div id="result-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="modal-title">...</h2>
+            <div id="modal-body" style="margin: 15px 0; text-align: left;">
+                <p><strong>Nama:</strong> <span id="m-name">-</span></p>
+                <p><strong>Univ:</strong> <span id="m-uni">-</span></p>
+                <p><strong>Status:</strong> <span id="m-res">-</span></p>
+            </div>
+            <button onclick="closeModal()">Scan Next (Tutup)</button>
+        </div>
+    </div>
+
+    <script>
+        let html5QrcodeScanner;
+        let isScanning = true;
+
+        function onScanSuccess(decodedText, decodedResult) {
+            if (!isScanning) return;
+            isScanning = false;
+
+            console.log(`Scan: ${decodedText}`);
+            try {
+                const data = JSON.parse(decodedText);
+                if (data.user_id) {
+                    processClaim(data.user_id);
+                } else {
+                    alert("QR Code tidak valid (Format salah)!");
+                    setTimeout(() => isScanning = true, 2000);
+                }
+            } catch (e) {
+                console.error(e);
+                alert("QR Code bukan milik sistem ini!");
+                setTimeout(() => isScanning = true, 2000);
+            }
+        }
+
+        async function processClaim(userId) {
+            document.getElementById('scan-status').innerText = "Memproses Data...";
+
+            try {
+                const { data: user, error: userError } = await _supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', userId)
+                    .single();
+
+                if (userError || !user) throw new Error("User tidak ditemukan di database.");
+
+                fillModalInfo(user);
+
+                if (user.residence_type.toLowerCase().includes('asrama')) {
+                    showResult("GAGAL", "Penghuni ASRAMA tidak berhak.", 'fail');
+                    return;
+                }
+
+                const { data: claim, error: claimError } = await _supabase
+                    .from('claims')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .maybeSingle();
+
+                if (claim) {
+                    const time = new Date(claim.claimed_at).toLocaleTimeString();
+                    showResult("SUDAH DIAMBIL", `User ini sudah klaim sebelumnya jam ${time}.`, 'fail');
+                } else {
+                    const { error: insertError } = await _supabase
+                        .from('claims')
+                        .insert([{ user_id: userId }]);
+
+                    if (insertError) throw insertError;
+
+                    showResult("BERHASIL", "Sembako boleh diberikan.", 'success');
+                }
+
+            } catch (err) {
+                showResult("ERROR", err.message, 'fail');
+            }
+        }
+
+        function fillModalInfo(user) {
+            document.getElementById('m-name').innerText = user.full_name;
+            document.getElementById('m-uni').innerText = user.university || '-';
+            document.getElementById('m-res').innerText = (user.residence_type || '-').toUpperCase();
+        }
+
+        function showResult(title, message, type) {
+            const modal = document.getElementById('result-modal');
+            const titleEl = document.getElementById('modal-title');
+
+            modal.classList.remove('hidden');
+            titleEl.innerText = title;
+            titleEl.style.color = type === 'success' ? '#00b894' : '#d63031';
+
+            addToHistory(title, message, type);
+        }
+
+        function closeModal() {
+            document.getElementById('result-modal').classList.add('hidden');
+            document.getElementById('scan-status').innerText = "Siap Scan...";
+            setTimeout(() => {
+                isScanning = true;
+            }, 1000);
+        }
+
+        function addToHistory(title, msg, type) {
+            const list = document.getElementById('history-list');
+            const name = document.getElementById('m-name').innerText;
+
+            const div = document.createElement('div');
+            div.className = `history-item history-${type}`;
+            div.innerHTML = `<strong>${name}</strong> - ${title}<br><small>${msg}</small>`;
+
+            list.insertBefore(div, list.firstChild);
+        }
+
+        function reloadScanner() {
+            location.reload();
+        }
+
+        function startScanner() {
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "reader",
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                false
+            );
+            html5QrcodeScanner.render(onScanSuccess);
+        }
+
+        window.onload = startScanner;
+    </script>
+</body>
+
+</html>
