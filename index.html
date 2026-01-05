@@ -32,10 +32,10 @@
             <div style="display:flex; gap:10px;">
                 <span
                     style="background:#fff; padding:8px 15px; border-radius:20px; font-weight:700; color:#555; box-shadow:0 5px 10px rgba(0,0,0,0.05);">📅
-                    Desember 2025</span>
+                    6 Desember 2025</span>
                 <span
                     style="background:#fff; padding:8px 15px; border-radius:20px; font-weight:700; color:#555; box-shadow:0 5px 10px rgba(0,0,0,0.05);">📍
-                    Yogyakarta</span>
+                    Bale Gadeng Yogyakarta</span>
             </div>
         </div>
 
@@ -93,7 +93,7 @@
                 // 1. Check User exists
                 const { data: user, error: userError } = await _supabase
                     .from('users')
-                    .select('id, full_name')
+                    .select('id, full_name, residence_type')
                     .eq('phone_number', phone)
                     .maybeSingle();
 
@@ -109,6 +109,17 @@
                     setTimeout(() => card.style.animation = "floatCard 6s ease-in-out infinite", 500);
 
                     resultArea.classList.add('hidden');
+                    return;
+                }
+
+                // Check Eligibility (Asrama)
+                if ((user.residence_type || '').toUpperCase().includes('ASRAMA')) {
+                    resultArea.classList.remove('hidden');
+                    userInfo.innerHTML = `<strong>Halo, ${user.full_name}</strong>`;
+                    userInfo.style.background = "#fee2e2";
+                    userInfo.style.color = "#991b1b";
+                    userInfo.innerHTML += `<br><small>Mohon maaf, mahasiswa Asrama tidak berhak menerima sembako.</small>`;
+                    actionBtn.classList.add('hidden');
                     return;
                 }
 

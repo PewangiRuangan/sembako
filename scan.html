@@ -47,7 +47,7 @@
             try {
                 const { data: claim, error } = await _supabase
                     .from('claims')
-                    .select('*, users(full_name)')
+                    .select('*, users(full_name, residence_type)')
                     .eq('user_id', userId)
                     .maybeSingle();
 
@@ -55,6 +55,14 @@
 
                 if (!claim) {
                     resultDiv.innerText = "Gagal: User belum memiliki tiket booking!";
+                    resultDiv.className = "alert alert-error";
+                    return;
+                }
+
+                // Check Eligibility (Asrama)
+                const status = (claim.users?.residence_type || '').toUpperCase();
+                if (status.includes('ASRAMA')) {
+                    resultDiv.innerText = `DITOLAK: Mahasiswa ASRAMA (${claim.users.full_name}) tidak berhak mendapatkan sembako.`;
                     resultDiv.className = "alert alert-error";
                     return;
                 }

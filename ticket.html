@@ -102,9 +102,19 @@
                 const badge = document.getElementById('status-badge');
                 const visualTitle = document.getElementById('status-title');
 
-                badge.innerText = "VERIFIED / BERHAK";
-                badge.classList.remove('error');
-                visualTitle.innerText = "ADMIT ONE";
+                const status = (user.residence_type || '').toUpperCase();
+
+                if (status.includes('ASRAMA')) {
+                    badge.innerText = "TIDAK BERHAK";
+                    badge.classList.add('error');
+                    visualTitle.innerText = "DITOLAK";
+                    visualTitle.style.color = "#ff4757";
+                } else {
+                    badge.innerText = "VERIFIED / BERHAK";
+                    badge.classList.remove('error');
+                    visualTitle.innerText = "ADMIT ONE";
+                    visualTitle.style.color = "#ffa502";
+                }
 
                 // Generate QR
                 new QRCode(document.getElementById("qrcode"), {
